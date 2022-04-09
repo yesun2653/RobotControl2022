@@ -214,7 +214,8 @@ VectorXd jointToPosition(VectorXd q){
     VectorXd tmp_v = VectorXd::Zero(3);
     MatrixXd tmp_m(4,4);
     
-    tmp_m = jointToTransform01(q)*
+    tmp_m = getTransformI0()*
+            jointToTransform01(q)*
             jointToTransform12(q)*
             jointToTransform23(q)*
             getTransform3E();
@@ -228,7 +229,8 @@ MatrixXd jointToRotMat(VectorXd q){
     MatrixXd tmp_m(4,4);
     MatrixXd CIE(3,3);
     
-    CIE = jointToTransform01(q)*
+    CIE = getTransformI0()*
+          jointToTransform01(q)*
           jointToTransform12(q)*
           jointToTransform23(q)*
           getTransform3E();
