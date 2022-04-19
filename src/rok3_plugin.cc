@@ -59,11 +59,9 @@ using namespace RigidBodyDynamics::Math;
 using namespace std;
 
 
-namespace gazebo
-{
+namespace gazebo {
 
-    class rok3_plugin : public ModelPlugin
-    {
+    class rok3_plugin : public ModelPlugin {
         //*** Variables for RoK-3 Simulation in Gazebo ***//
         //* TIME variable
         common::Time last_update_time;
@@ -92,9 +90,8 @@ namespace gazebo
         physics::JointPtr LS, RS;
 
         //* Index setting for each joint
-        
-        enum
-        {
+
+        enum {
             WST = 0, LHY, LHR, LHP, LKN, LAP, LAR, RHY, RHR, RHP, RKN, RAP, RAR
         };
 
@@ -139,169 +136,171 @@ namespace gazebo
 }
 
 //*getTransformI0()
-MatrixXd getTransformI0(){
-    MatrixXd tmp_m(4,4);
-    
+
+MatrixXd getTransformI0() {
+    MatrixXd tmp_m(4, 4);
+
     tmp_m << 1, 0, 0, 0, \
              0, 1, 0, 0, \
              0, 0, 1, 0, \
              0, 0, 0, 1;
-    
+
     return tmp_m;
 }
 
 
 //*getTransform6E()
-MatrixXd getTransform6E(){
-    MatrixXd tmp_m(4,4);
-    
+
+MatrixXd getTransform6E() {
+    MatrixXd tmp_m(4, 4);
+
     tmp_m << 1, 0, 0, 0, \
              0, 1, 0, 0, \
              0, 0, 1, -0.09, \
              0, 0, 0, 1;
-    
+
     return tmp_m;
 }
 
-
-MatrixXd jointToTransform01(VectorXd q){
-    MatrixXd tmp_m(4,4);
+MatrixXd jointToTransform01(VectorXd q) {
+    MatrixXd tmp_m(4, 4);
     double qq = q(0);
-    
+
     tmp_m << cos(qq), -sin(qq), 0, 0, \
              sin(qq), cos(qq), 0, 0.105, \
              0, 0, 1, -0.1512, \
              0, 0, 0, 1;
-    
+
     return tmp_m;
 }
 
-MatrixXd jointToTransform12(VectorXd q){
-    MatrixXd tmp_m(4,4);
+MatrixXd jointToTransform12(VectorXd q) {
+    MatrixXd tmp_m(4, 4);
     double qq = q(1);
-    
+
     tmp_m << 1, 0, 0, 0, \
              0, cos(qq), -sin(qq), 0, \
              0, sin(qq), cos(qq), 0, \
              0, 0, 0, 1;
-    
+
     return tmp_m;
 }
 
-MatrixXd jointToTransform23(VectorXd q){
-    MatrixXd tmp_m(4,4);
+MatrixXd jointToTransform23(VectorXd q) {
+    MatrixXd tmp_m(4, 4);
     double qq = q(2);
-    
+
     tmp_m << cos(qq), 0, sin(qq), 0, \
              0, 1, 0, 0, \
              -sin(qq), 0, cos(qq), 0, \
              0, 0, 0, 1;
-    
+
     return tmp_m;
 }
 
-
-MatrixXd jointToTransform34(VectorXd q){
-    MatrixXd tmp_m(4,4);
+MatrixXd jointToTransform34(VectorXd q) {
+    MatrixXd tmp_m(4, 4);
     double qq = q(3);
-    
+
     tmp_m << cos(qq), 0, sin(qq), 0, \
              0, 1, 0, 0, \
              -sin(qq), 0, cos(qq), -0.35, \
              0, 0, 0, 1;
-    
+
     return tmp_m;
 }
 
-
-MatrixXd jointToTransform45(VectorXd q){
-    MatrixXd tmp_m(4,4);
+MatrixXd jointToTransform45(VectorXd q) {
+    MatrixXd tmp_m(4, 4);
     double qq = q(4);
-    
+
     tmp_m << cos(qq), 0, sin(qq), 0, \
              0, 1, 0, 0, \
              -sin(qq), 0, cos(qq), -0.35, \
              0, 0, 0, 1;
-    
+
     return tmp_m;
 }
 
-
-MatrixXd jointToTransform56(VectorXd q){
-    MatrixXd tmp_m(4,4);
+MatrixXd jointToTransform56(VectorXd q) {
+    MatrixXd tmp_m(4, 4);
     double qq = q(5);
-    
+
     tmp_m << 1, 0, 0, 0, \
              0, cos(qq), -sin(qq), 0, \
              0, sin(qq), cos(qq), 0, \
              0, 0, 0, 1;
-    
+
     return tmp_m;
 }
 
-
-VectorXd jointToPosition(VectorXd q){
+VectorXd jointToPosition(VectorXd q) {
     VectorXd tmp_v = VectorXd::Zero(6);
-    MatrixXd tmp_m(4,4);
-    
-    tmp_m = getTransformI0()*
-            jointToTransform01(q)*
-            jointToTransform12(q)*
-            jointToTransform23(q)*
-            jointToTransform34(q)*
-            jointToTransform45(q)*
-            jointToTransform56(q)*
+    MatrixXd tmp_m(4, 4);
+
+    tmp_m = getTransformI0() *
+            jointToTransform01(q) *
+            jointToTransform12(q) *
+            jointToTransform23(q) *
+            jointToTransform34(q) *
+            jointToTransform45(q) *
+            jointToTransform56(q) *
             getTransform6E();
-    
-    tmp_v = tmp_m.block(0,3,3,1);
-    
+
+    tmp_v = tmp_m.block(0, 3, 3, 1);
+
     return tmp_v;
 }
 
-MatrixXd jointToRotMat(VectorXd q){
-    MatrixXd tmp_m(4,4);
-    MatrixXd CIE(3,3);
-    
-    CIE = getTransformI0()*
-          jointToTransform01(q)*
-          jointToTransform12(q)*
-          jointToTransform23(q)*
-          jointToTransform34(q)*
-          jointToTransform45(q)*
-          jointToTransform56(q)*
-          getTransform6E();
-    
-    tmp_m = CIE.block(0,0,3,3);
-    
+MatrixXd jointToRotMat(VectorXd q) {
+    MatrixXd tmp_m(4, 4);
+    MatrixXd CIE(3, 3);
+
+    CIE = getTransformI0() *
+            jointToTransform01(q) *
+            jointToTransform12(q) *
+            jointToTransform23(q) *
+            jointToTransform34(q) *
+            jointToTransform45(q) *
+            jointToTransform56(q) *
+            getTransform6E();
+
+    tmp_m = CIE.block(0, 0, 3, 3);
+
     return tmp_m;
 }
 
-
-VectorXd rotToEuler(MatrixXd rotMat){
+VectorXd rotToEuler(MatrixXd rotMat) {
     VectorXd tmp_v(3);
-    
-    tmp_v(0) = atan2(rotMat(1,0),rotMat(0,0));
-    tmp_v(1) = atan2(-rotMat(2,0),sqrt(rotMat(2,1)*rotMat(2,1)+rotMat(2,2)*rotMat(2,2)));
-    tmp_v(2) = atan2(rotMat(2,1),rotMat(2,2));
-    
-    
+
+    tmp_v(0) = atan2(rotMat(1, 0), rotMat(0, 0));
+    tmp_v(1) = atan2(-rotMat(2, 0), sqrt(rotMat(2, 1) * rotMat(2, 1) + rotMat(2, 2) * rotMat(2, 2)));
+    tmp_v(2) = atan2(rotMat(2, 1), rotMat(2, 2));
+
+
     return tmp_v;
 }
 
 
 
 //*Preparing RobotControl Practice
-void Practice(){
-    MatrixXd TI0(4,4), T6E(4,4), T01(4,4), T12(4,4), 
-             T23(4,4), T34(4,4), T45(4,4), T56(4,4),
-             TIE(4,4);
+
+void Practice() {
+    MatrixXd TI0(4, 4), T6E(4, 4), T01(4, 4), T12(4, 4),
+            T23(4, 4), T34(4, 4), T45(4, 4), T56(4, 4),
+            TIE(4, 4);
     Vector3d pos, euler;
-    MatrixXd CIE(3,3);
+    MatrixXd CIE(3, 3);
     VectorXd q = VectorXd::Zero(6);
-    q(0)=10; q(1)=20; q(2)=30; q(3)=40; q(4)=50; q(5)=60;
-    q = q*PI/180;
-    
-    
+    q(0) = 10;
+    q(1) = 20;
+    q(2) = 30;
+    q(3) = 40;
+    q(4) = 50;
+    q(5) = 60;
+    q = q * PI / 180;
+
+
     TI0 = getTransformI0();
     T6E = getTransform6E();
     T01 = jointToTransform01(q);
@@ -310,29 +309,28 @@ void Practice(){
     T34 = jointToTransform34(q);
     T45 = jointToTransform45(q);
     T56 = jointToTransform56(q);
-    
-    TIE = TI0*T01*T12*T23*T34*T45*T56*T6E;
-    
+
+    TIE = TI0 * T01 * T12 * T23 * T34 * T45 * T56*T6E;
+
     pos = jointToPosition(q);
     CIE = jointToRotMat(q);
-    euler = rotToEuler(CIE)*180/PI;
-    
-    
+    euler = rotToEuler(CIE)*180 / PI;
+
+
     std::cout << "Hello World!" << std::endl;
     std::cout << "TIE = " << TIE << std::endl;
-    
+
     std::cout << "Position = " << pos << std::endl;
     std::cout << "CIE = " << CIE << std::endl;
     std::cout << "Euler = " << euler << std::endl;
-    
+
 }
 
-void gazebo::rok3_plugin::Load(physics::ModelPtr _model, sdf::ElementPtr /*_sdf*/)
-{
+void gazebo::rok3_plugin::Load(physics::ModelPtr _model, sdf::ElementPtr /*_sdf*/) {
     /*
      * Loading model data and initializing the system before simulation 
      */
-    
+
     //* model.sdf file based model data input to [physics::ModelPtr model] for gazebo simulation
     model = _model;
 
@@ -362,15 +360,14 @@ void gazebo::rok3_plugin::Load(physics::ModelPtr _model, sdf::ElementPtr /*_sdf*
     last_update_time = model->GetWorld()->GetSimTime();
     update_connection = event::Events::ConnectWorldUpdateBegin(boost::bind(&rok3_plugin::UpdateAlgorithm, this));
 
-    
+
     Practice();
-    
-    
-    
+
+
+
 }
 
-void gazebo::rok3_plugin::UpdateAlgorithm()
-{
+void gazebo::rok3_plugin::UpdateAlgorithm() {
     /*
      * Algorithm update while simulation
      */
@@ -388,21 +385,32 @@ void gazebo::rok3_plugin::UpdateAlgorithm()
 
     //* Read Sensors data
     GetjointData();
+
+    //Target angles_angle's target information important
+    joint[LHY].targetRadian = 10 * 3.14 / 180;
+    joint[LHR].targetRadian = 20 * 3.14 / 180;
+    joint[LHP].targetRadian = 30 * 3.14 / 180;
+    joint[LKN].targetRadian = 40 * 3.14 / 180;
+    joint[LAP].targetRadian = 50 * 3.14 / 180;
+    joint[LAR].targetRadian = 60 * 3.14 / 180;
+
+    //trajectory
     
+
+
     //* Joint Controller
     jointController();
 }
 
-void gazebo::rok3_plugin::jointController()
-{
+void gazebo::rok3_plugin::jointController() {
     /*
      * Joint Controller for each joint
      */
 
     // Update target torque by control
     for (int j = 0; j < nDoF; j++) {
-        joint[j].targetTorque = joint[j].Kp * (joint[j].targetRadian-joint[j].actualRadian)\
-                              + joint[j].Kd * (joint[j].targetVelocity-joint[j].actualVelocity);
+        joint[j].targetTorque = joint[j].Kp * (joint[j].targetRadian - joint[j].actualRadian)\
+                              + joint[j].Kd * (joint[j].targetVelocity - joint[j].actualVelocity);
     }
 
     // Update target torque in gazebo simulation     
@@ -423,8 +431,7 @@ void gazebo::rok3_plugin::jointController()
     torso_joint->SetForce(0, joint[WST].targetTorque);
 }
 
-void gazebo::rok3_plugin::GetJoints()
-{
+void gazebo::rok3_plugin::GetJoints() {
     /*
      * Get each joints data from [physics::ModelPtr _model]
      */
@@ -449,8 +456,7 @@ void gazebo::rok3_plugin::GetJoints()
     RS = this->model->GetJoint("RS");
 }
 
-void gazebo::rok3_plugin::GetjointData()
-{
+void gazebo::rok3_plugin::GetjointData() {
     /*
      * Get encoder and velocity data of each joint
      * encoder unit : [rad] and unit conversion to [deg]
@@ -500,18 +506,17 @@ void gazebo::rok3_plugin::GetjointData()
 
 }
 
-void gazebo::rok3_plugin::initializeJoint()
-{
+void gazebo::rok3_plugin::initializeJoint() {
     /*
      * Initialize joint variables for joint control
      */
-    
+
     for (int j = 0; j < nDoF; j++) {
         joint[j].targetDegree = 0;
         joint[j].targetRadian = 0;
         joint[j].targetVelocity = 0;
         joint[j].targetTorque = 0;
-        
+
         joint[j].actualDegree = 0;
         joint[j].actualRadian = 0;
         joint[j].actualVelocity = 0;
@@ -520,8 +525,7 @@ void gazebo::rok3_plugin::initializeJoint()
     }
 }
 
-void gazebo::rok3_plugin::SetJointPIDgain()
-{
+void gazebo::rok3_plugin::SetJointPIDgain() {
     /*
      * Set each joint PID gain for joint control
      */
