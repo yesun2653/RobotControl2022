@@ -57,6 +57,7 @@ using namespace RigidBodyDynamics;
 using namespace RigidBodyDynamics::Math;
 
 using namespace std;
+//using namespace arma;
 
 
 namespace gazebo {
@@ -368,79 +369,7 @@ MatrixXd jointToPosJac(VectorXd q)
         
 
 MatrixXd jointToRotJac(VectorXd q)
-{
-#if 0
-   // Input: vector of generalized coordinates (joint angles)
-   // Output: J_R, Jacobian of the end-effector orientation which maps joint velocities to end-effector angular velocities in I frame.
-    MatrixXd J_R = MatrixXd::Zero(3,6);
-    MatrixXd T_I0(4,4), T_01(4,4), T_12(4,4), T_23(4,4), T_34(4,4), T_45(4,4), T_56(4,4), T_6E(4,4), T_IE(4,4);
-    MatrixXd T_I1(4,4), T_I2(4,4), T_I3(4,4), T_I4(4,4), T_I5(4,4), T_I6(4,4);
-    MatrixXd R_I1(3,3), R_I2(3,3), R_I3(3,3), R_I4(3,3), R_I5(3,3), R_I6(3,3);
-    Vector3d n_1, n_2, n_3, n_4, n_5, n_6;
-    Vector3d n_I_1, n_I_2, n_I_3, n_I_4, n_I_5, n_I_6;
-    
-
-    //* Compute the relative homogeneous transformation matrices.
-    T_I0 = getTransformI0();
-    T_01 = jointToTransform01(q);
-    T_12 = jointToTransform12(q);
-    T_23 = jointToTransform23(q);
-    T_34 = jointToTransform34(q);
-    T_45 = jointToTransform45(q);
-    T_56 = jointToTransform56(q);
-    T_6E = getTransform6E();
-
-    //* Compute the homogeneous transformation matrices from frame k to the inertial frame I.
-    T_I1 = T_I0 * T_01;
-    T_I2 = T_I0 * T_01 * T_12;
-    T_I3 = T_I0 * T_01 * T_12 * T_23;
-    T_I4 = T_I0 * T_01 * T_12 * T_23 * T_34;
-    T_I5 = T_I0 * T_01 * T_12 * T_23 * T_34 * T_45;
-    T_I6 = T_I0 * T_01 * T_12 * T_23 * T_34 * T_45 * T_56;
-    T_IE = T_I6 * T_6E;
-
-    //* Extract the rotation matrices from each homogeneous transformation matrix.
-    R_I1 = T_I1.block(0,3,3,1);
-    R_I2 = T_I2.block(0,3,3,1);
-    R_I3 = T_I3.block(0,3,3,1);
-    R_I4 = T_I4.block(0,3,3,1);
-    R_I5 = T_I5.block(0,3,3,1);
-    R_I6 = T_I6.block(0,3,3,1);
-    
-    
-
-    //* Define the unit vectors around which each link rotate in the precedent coordinate frame.
-    n_1 << 0,0,1;
-    n_2 << 1,0,0;
-    n_3 << 0,1,0;
-    n_4 << 0,1,0;
-    n_5 << 0,1,0;
-    n_6 << 1,0,0;
-
-    //* Compute the unit vectors for the inertial frame I.
-    
-    //n_I_1 = R_I1 * n_1;
-    //n_I_2 = R_I2 * n_2;
-    //n_I_3 = R_I3 * n_3;
-    //n_I_4 = R_I4 * n_4;
-    //n_I_5 = R_I5 * n_5;
-    n_I_6 = R_I6 * n_6;
-    
-  
-    //* Compute the translational Jacobian.
-    J_R.col(0) << n_I_1;
-    J_R.col(1) << n_I_2;
-    J_R.col(2) << n_I_3;
-    J_R.col(3) << n_I_4;
-    J_R.col(4) << n_I_5;
-    J_R.col(5) << n_I_6;
-
-    std::cout << "Test, J_R:" <<  J_R << std::endl;
-
-    return J_R;
-#endif
-    
- 
+{    
     // Input: vector of generalized coordinates (joint angles)
     // Output: J_R, Jacobian of the end-effector orientation which maps joint velocities to end-effector angular velocities in I frame.
     MatrixXd J_R = MatrixXd::Zero(3,6);
@@ -480,7 +409,6 @@ MatrixXd jointToRotJac(VectorXd q)
     R_I6 = T_I6.block(0,0,3,3);
 
 
-
     //* Define the unit vectors around which each link rotate in the precedent coordinate frame.
     n_1 << 0,0,1;
     n_2 << 1,0,0;
@@ -512,17 +440,70 @@ MatrixXd jointToRotJac(VectorXd q)
     return J_R;
 }
 
+
+MatrixXd pseudoInverseMat(MatrixXd A, double lambda)
+{
+    // Input: Any m-by-n matrix
+    // Output: An n-by-m pseudo-inverse of the input according to the Moore-Penrose formula
+    
+    MatrixXd pinvA;
+    MatrixXd I;
+
+    int m = A.rows();
+    int n = A.cols();
+    
+    //left pseudo inverse
+    if (m >= n){
+        I = MatrixXd::Identity(n,n);
+        pinvA = ((A.transpose() * A + lambda*lambda*I).inverse())*A.transpose();
+    }
+    
+    //right pseudo inverse
+    else if (m < n){
+        I = MatrixXd::Identity(m,m);
+        pinvA = A.transpose()*((A * A.transpose() + lambda*lambda*I).inverse());
+    }
+
+    return pinvA;
+}
+
+
+VectorXd rotMatToRotVec(MatrixXd C)
+{
+    // Input: a rotation matrix C
+    // Output: the rotational vector which describes the rotation C
+    Vector3d phi,n;
+    double th;
+    
+    
+    if(fabs(th)<0.001){
+         n << 0,0,0;
+    }
+    
+    else{
+        
+        th = acos( (C(0,0) + C(1,1) + C(2,2)) / 2.0 );
+
+        n << (C(2,1) - C(1,2)), (C(0,2) - C(2,0)) , (C(1,0) - C(0,1)) ;
+        n = (1.0 / (2.0*sin(th))) * n;
+        
+    }
+        
+    phi = th*n;
+    
+   
+    return phi;
+}
+
             
 //*Preparing RobotControl Practice
-
 void Practice() {
     MatrixXd TI0(4, 4), T6E(4, 4), T01(4, 4), T12(4, 4),
-            T23(4, 4), T34(4, 4), T45(4, 4), T56(4, 4),
-            TIE(4, 4);
+             T23(4, 4), T34(4, 4), T45(4, 4), T56(4, 4), TIE(4, 4);
     Vector3d pos, euler;
+    MatrixXd CIE(3, 3);
     MatrixXd J_P(3,6);
     MatrixXd J_R(3,6);
-    MatrixXd CIE(3, 3);
     VectorXd q = VectorXd::Zero(6);
     q(0) = 10;
     q(1) = 20;
@@ -750,16 +731,16 @@ void gazebo::rok3_plugin::initializeJoint() {
      */
 
     for (int j = 0; j < nDoF; j++) {
-        joint[j].targetDegree = 0;
-        joint[j].targetRadian = 0;
+        joint[j].targetDegree   = 0;
+        joint[j].targetRadian   = 0;
         joint[j].targetVelocity = 0;
-        joint[j].targetTorque = 0;
+        joint[j].targetTorque   = 0;
 
-        joint[j].actualDegree = 0;
-        joint[j].actualRadian = 0;
+        joint[j].actualDegree   = 0;
+        joint[j].actualRadian   = 0;
         joint[j].actualVelocity = 0;
-        joint[j].actualRPM = 0;
-        joint[j].actualTorque = 0;
+        joint[j].actualRPM      = 0;
+        joint[j].actualTorque   = 0;
     }
 }
 
